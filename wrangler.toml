@@ -3,6 +3,9 @@ name = "scruttin"
 compatibility_date = "2024-09-01"
 pages_build_output_dir = "dist"
 
+[assets]
+directory = "./dist"
+
 # Cloudflare D1 Database binding
 # Run: npx wrangler d1 create scruttin-d1
 # And replace database_id with your generated D1 database ID
