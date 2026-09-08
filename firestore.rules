@@ -1,0 +1,129 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny Catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'mderrickm00@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && incoming().id == userId
+        && incoming().email is string
+        && incoming().display_name is string
+        && incoming().is_admin == false;
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && incoming().id == existing().id
+        && (incoming().is_admin == existing().is_admin || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Admin table lookup
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Conversations / Prompts
+    match /conversations/{conversationId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && isValidId(conversationId)
+        && incoming().user_id == request.auth.uid
+        && incoming().body is string
+        && incoming().body.size() <= 1000
+        && (incoming().is_platform == false || isAdmin());
+      allow update: if isSignedIn()
+        && isValidId(conversationId)
+        && (existing().user_id == request.auth.uid || isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['scrut_count', 'country_count', 'circulation_score']));
+      allow delete: if isSignedIn()
+        && isValidId(conversationId)
+        && (existing().user_id == request.auth.uid || isAdmin());
+    }
+
+    // Scruts (Ruts / voice and text thoughts)
+    match /scruts/{scrutId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && isValidId(scrutId)
+        && incoming().user_id == request.auth.uid
+        && (!('text' in incoming()) || (incoming().text is string && incoming().text.size() <= 5000));
+      allow update: if isSignedIn()
+        && isValidId(scrutId)
+        && (
+          existing().user_id == request.auth.uid ||
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['resonate_count', 'is_reported'])
+        );
+      allow delete: if isSignedIn()
+        && isValidId(scrutId)
+        && (existing().user_id == request.auth.uid || isAdmin());
+    }
+
+    // Resonates (likes/reactions)
+    match /resonates/{resonateId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && isValidId(resonateId)
+        && incoming().user_id == request.auth.uid;
+      allow delete: if isSignedIn()
+        && isValidId(resonateId)
+        && existing().user_id == request.auth.uid;
+    }
+
+    // Moderation reports
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn()
+        && isValidId(reportId)
+        && incoming().user_id == request.auth.uid
+        && incoming().reason is string
+        && incoming().reason.size() <= 500;
+      allow update, delete: if isAdmin();
+    }
+
+    // Topics taxonomy
+    match /topics/{topicId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Connectivity health test
+    match /test/{testId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

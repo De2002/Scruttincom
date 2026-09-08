@@ -1,0 +1,141 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile data stored at /users/{userId}",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "display_name": { "type": "string", "maxLength": 100 },
+        "avatar_url": { "type": "string", "maxLength": 2048 },
+        "country": { "type": "string", "maxLength": 100 },
+        "city": { "type": "string", "maxLength": 100 },
+        "bio": { "type": "string", "maxLength": 500 },
+        "website": { "type": "string", "maxLength": 500 },
+        "twitter": { "type": "string", "maxLength": 100 },
+        "instagram": { "type": "string", "maxLength": 100 },
+        "tip_link": { "type": "string", "maxLength": 500 },
+        "is_admin": { "type": "boolean" },
+        "onboarded": { "type": "boolean" },
+        "created_at": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "email", "display_name"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Conversation starter or question topic",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "body": { "type": "string", "maxLength": 1000 },
+        "topic": { "type": "string", "maxLength": 100 },
+        "type": { "type": "string", "maxLength": 50 },
+        "is_platform": { "type": "boolean" },
+        "scrut_count": { "type": "number" },
+        "country_count": { "type": "number" },
+        "created_at": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "user_id", "body", "type"]
+    },
+    "Scrut": {
+      "title": "Scrut",
+      "description": "A Rut voice or text reflection or statement response",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "conversation_id": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "maxLength": 50 },
+        "text": { "type": "string", "maxLength": 5000 },
+        "audio_url": { "type": "string", "maxLength": 2048 },
+        "audio_duration": { "type": "number" },
+        "position": { "type": "string", "maxLength": 50 },
+        "attachment_url": { "type": "string", "maxLength": 2048 },
+        "resonate_count": { "type": "number" },
+        "is_reported": { "type": "boolean" },
+        "created_at": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "user_id", "type"]
+    },
+    "Resonate": {
+      "title": "Resonate",
+      "description": "User reaction or resonance with a Rut",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "scrut_id": { "type": "string", "maxLength": 128 },
+        "created_at": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "user_id", "scrut_id"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Content moderation flag submitted by a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "scrut_id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "reason": { "type": "string", "maxLength": 500 },
+        "reviewed": { "type": "boolean" },
+        "actioned": { "type": "boolean" },
+        "created_at": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "scrut_id", "user_id", "reason"]
+    },
+    "Topic": {
+      "title": "Topic",
+      "description": "Topics and taxonomy categories",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "label": { "type": "string", "maxLength": 100 },
+        "color": { "type": "string", "maxLength": 50 },
+        "sort_order": { "type": "number" }
+      },
+      "required": ["id", "label"]
+    },
+    "TestConnection": {
+      "title": "TestConnection",
+      "description": "Connectivity test document",
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile collection"
+    },
+    "/conversations/{conversationId}": {
+      "schema": "Conversation",
+      "description": "Topic conversations and questions"
+    },
+    "/scruts/{scrutId}": {
+      "schema": "Scrut",
+      "description": "User voice and text responses (Ruts)"
+    },
+    "/resonates/{resonateId}": {
+      "schema": "Resonate",
+      "description": "User resonance likes on ruts"
+    },
+    "/reports/{reportId}": {
+      "schema": "Report",
+      "description": "Moderation reports on ruts"
+    },
+    "/topics/{topicId}": {
+      "schema": "Topic",
+      "description": "Taxonomy topic tags"
+    },
+    "/test/{testId}": {
+      "schema": "TestConnection",
+      "description": "Test collection for connectivity check"
+    }
+  }
+}

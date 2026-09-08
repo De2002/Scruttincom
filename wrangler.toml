@@ -1,0 +1,22 @@
+# Cloudflare Pages / Workers Configuration for Scruttin
+name = "scruttin"
+compatibility_date = "2024-09-01"
+pages_build_output_dir = "dist"
+
+# Cloudflare D1 Database binding
+# Run: npx wrangler d1 create scruttin-d1
+# And replace database_id with your generated D1 database ID
+[[d1_databases]]
+binding = "DB"
+database_name = "scruttin-d1"
+database_id = "your-d1-database-id"
+
+# Cloudflare R2 Storage Bucket binding
+# Run: npx wrangler r2 bucket create scruttin-media
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "scruttin-media"
+preview_bucket_name = "scruttin-media-preview"
+
+[vars]
+ENVIRONMENT = "production"

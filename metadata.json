@@ -1,0 +1,10 @@
+{
+  "name": "Scruttin",
+  "description": "A global platform for authentic perspectives through voice and text ruts. People sign up, record their thoughts, and share their voices. One question, multiple ruts from voices around the world.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

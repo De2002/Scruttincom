@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scruttin — less showing. more saying.</title>
+    <meta name="description" content="Global street interviews through voice and text ruts. One question, multiple ruts from strangers around the world. Tag along to unlock the Tagged Feed at 100 taggers, customize your atmosphere with rain, snow, thunder or your own photos, discover country maps, and experience each rut once in a lifetime." />
+    <meta name="keywords" content="scruttin, global interview, voice opinions, perspectives, questions, street interview, social audio, world opinions" />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="Scruttin" />
+    <meta name="theme-color" content="#0a0a12" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.scruttin.com" />
+    <meta property="og:title" content="Scruttin — less showing. more saying." />
+    <meta property="og:description" content="A global platform for authentic perspectives through voice and text ruts. People sign up, record their thoughts, and share their voices. One question, multiple ruts from voices around the world." />
+    <meta property="og:image" content="/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Scruttin" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@scruttin" />
+    <meta name="twitter:title" content="Scruttin — less showing. more saying." />
+    <meta name="twitter:description" content="A global platform for authentic perspectives through voice and text ruts. People sign up, record their thoughts, and share their voices. One question, multiple ruts from voices around the world." />
+    <meta name="twitter:image" content="/og-image.jpg" />
+
+    <!-- Favicon — letter S -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet" />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Scruttin",
+      "url": "https://www.scruttin.com",
+      "description": "A global community of perspectives. Questions. Voices. Perspectives.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://www.scruttin.com/stream",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    <!-- Safe fetch getter/setter patch for iframe compatibility -->
+    <script>
+      (function() {
+        try {
+          var currentFetch = window.fetch;
+          if (currentFetch) {
+            try {
+              Object.defineProperty(window, 'fetch', {
+                configurable: true,
+                enumerable: true,
+                get: function() {
+                  return currentFetch;
+                },
+                set: function(fn) {
+                  currentFetch = fn;
+                }
+              });
+            } catch (e1) {
+              if (typeof Window !== 'undefined' && Window.prototype) {
+                try {
+                  Object.defineProperty(Window.prototype, 'fetch', {
+                    configurable: true,
+                    enumerable: true,
+                    get: function() {
+                      return currentFetch;
+                    },
+                    set: function(fn) {
+                      currentFetch = fn;
+                    }
+                  });
+                } catch (e2) {}
+              }
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
