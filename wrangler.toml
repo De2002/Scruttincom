@@ -6,20 +6,20 @@ pages_build_output_dir = "dist"
 [assets]
 directory = "./dist"
 
-# Cloudflare D1 Database binding
-# Run: npx wrangler d1 create scruttin-d1
-# And replace database_id with your generated D1 database ID
-[[d1_databases]]
-binding = "DB"
-database_name = "scruttin-d1"
-database_id = "your-d1-database-id"
-
-# Cloudflare R2 Storage Bucket binding
-# Run: npx wrangler r2 bucket create scruttin-media
-[[r2_buckets]]
-binding = "MEDIA_BUCKET"
-bucket_name = "scruttin-media"
-preview_bucket_name = "scruttin-media-preview"
+# If you configure bindings via Cloudflare Dashboard (Workers & Pages > Settings > Bindings),
+# leave the blocks below commented out so the Dashboard has full authority.
+#
+# Alternatively, if you prefer wrangler.toml as your source of truth:
+# uncomment and fill in your real D1 database UUID and bucket name:
+#
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "scruttin-d1"
+# database_id = "<your-real-d1-uuid>"
+#
+# [[r2_buckets]]
+# binding = "MEDIA_BUCKET"
+# bucket_name = "<your-r2-bucket-name>"
 
 [vars]
 ENVIRONMENT = "production"
