@@ -121,12 +121,11 @@ function Protected({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export default function App() {
+function AppRoutes() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <StreamProvider>
-          <TaggedProvider>
+      <StreamProvider>
+        <TaggedProvider>
             <Toaster
               position="top-center"
               toastOptions={{
@@ -168,10 +167,17 @@ export default function App() {
 
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </TaggedProvider>
-        </StreamProvider>
-      </AuthProvider>
+        </TaggedProvider>
+      </StreamProvider>
     </BrowserRouter>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 }
 

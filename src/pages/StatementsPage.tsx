@@ -54,7 +54,7 @@ export default function StatementsPage() {
       ]);
       setConversations(convList);
       if (topicsList && topicsList.length > 0) {
-        setDbTopics(topicsList);
+        setDbTopics(topicsList.map((topic) => topic.label));
       }
       setLoading(false);
     })();

@@ -15,6 +15,21 @@ import { auth } from '@/lib/firebase';
 
 const API_BASE = '/api';
 
+type TopicRecord = { id: string; label: string; sort_order?: number; color?: string };
+
+function normalizeTopicValue(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object' && 'label' in value) {
+    const label = (value as { label?: unknown }).label;
+    return typeof label === 'string' ? label : '';
+  }
+  return '';
+}
+
+function normalizeConversation(conversation: ConversationStarter): ConversationStarter {
+  return { ...conversation, topic: normalizeTopicValue(conversation.topic) };
+}
+
 /** Every API request carries the current Firebase ID token. */
 async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T | null> {
   try {
@@ -47,7 +62,10 @@ export async function fetchD1Stream(): Promise<{
 }> {
   const data = await apiFetch<{ conversations: ConversationStarter[]; scruts: Scrut[] }>('/stream');
   if (data && data.conversations && data.conversations.length > 0) {
-    return data;
+    return {
+      ...data,
+      conversations: data.conversations.map(normalizeConversation),
+    };
   }
   // Fallback if D1 is initializing
   return {
@@ -68,7 +86,7 @@ export async function fetchD1Conversations(params?: {
 
   const data = await apiFetch<ConversationStarter[]>(`/conversations?${q.toString()}`);
   if (data && Array.isArray(data) && data.length > 0) {
-    return data;
+    return data.map(normalizeConversation);
   }
   // Fallback filter
   if (p?.type) {
@@ -80,7 +98,7 @@ export async function fetchD1Conversations(params?: {
 export async function fetchD1Conversation(id: string): Promise<ConversationStarter | null> {
   const data = await apiFetch<ConversationStarter>(`/conversations?id=${id}`);
   if (data && data.id) {
-    return data;
+    return normalizeConversation(data);
   }
   return ([] as ConversationStarter[]).find((c) => c.id === id) || null;
 }
@@ -422,8 +440,8 @@ export async function voteD1Poll(
 // 5. META, MEDIA & REPORTS
 // ==========================================
 
-export async function fetchD1Topics(): Promise<{ id: string; label: string }[]> {
-  const data = await apiFetch<{ id: string; label: string }[]>('/meta?resource=topics');
+export async function fetchD1Topics(): Promise<TopicRecord[]> {
+  const data = await apiFetch<TopicRecord[]>('/meta?resource=topics');
   if (data && Array.isArray(data) && data.length > 0) {
     return data;
   }
