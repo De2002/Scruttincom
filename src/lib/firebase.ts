@@ -1,18 +1,37 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
+import { getAnalytics, isSupported, Analytics } from 'firebase/analytics';
 import { initializeFirestore } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
-export const db = initializeFirestore(
-  app,
-  {
-    experimentalForceLongPolling: true,
-  },
-  firebaseConfig.firestoreDatabaseId
-);
+export const firebaseConfig = {
+  apiKey: "AIzaSyC28n1jTjo7Sfk-WlGT3dCYbl8I5IR6p30",
+  authDomain: "scruttin.firebaseapp.com",
+  projectId: "scruttin",
+  storageBucket: "scruttin.firebasestorage.app",
+  messagingSenderId: "997243503198",
+  appId: "1:997243503198:web:82c26c867e271e7005aacf",
+  measurementId: "G-SJCVSPL6MV"
+};
+
+export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+
+export let analytics: Analytics | null = null;
+if (typeof window !== 'undefined') {
+  isSupported().then((supported) => {
+    if (supported) {
+      analytics = getAnalytics(app);
+    }
+  }).catch(() => {
+    // Analytics not supported or blocked by browser policy
+  });
+}
+
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+});
 
 export enum OperationType {
   CREATE = 'create',

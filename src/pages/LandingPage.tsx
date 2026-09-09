@@ -63,49 +63,49 @@ interface SystemQuestion {
 
 const FALLBACK_QUESTIONS: SystemQuestion[] = [
   {
-    id: 'c-street',
+    id: 'fb-street',
     body: 'What is something your city or culture understands that the rest of the world gets wrong?',
     topic: 'Culture',
     scrut_count: 3120,
     country_count: 54,
   },
   {
-    id: 'c1',
+    id: 'fb-c1',
     body: "What's something you stopped caring about as you got older?",
     topic: 'Life',
     scrut_count: 2847,
     country_count: 41,
   },
   {
-    id: 'c4',
+    id: 'fb-c4',
     body: "What's something that's normal in your country but surprises foreigners?",
     topic: 'Culture',
     scrut_count: 892,
     country_count: 53,
   },
   {
-    id: 'c3',
+    id: 'fb-c3',
     body: "What's something your parents were right about?",
     topic: 'Family',
     scrut_count: 3421,
     country_count: 47,
   },
   {
-    id: 'c5',
+    id: 'fb-c5',
     body: 'When did you realise you were actually becoming an adult?',
     topic: 'Life',
     scrut_count: 1587,
     country_count: 33,
   },
   {
-    id: 'c7',
+    id: 'fb-c7',
     body: "What's something adulthood didn't prepare you for?",
     topic: 'Life',
     scrut_count: 4102,
     country_count: 58,
   },
   {
-    id: 'c8',
+    id: 'fb-c8',
     body: 'What does success mean to you?',
     topic: 'Philosophy',
     scrut_count: 2103,
@@ -175,14 +175,26 @@ export default function LandingPage() {
             country_count: q.country_count || 15,
           }));
 
-          // Merge unique questions
-          const combined = [...FALLBACK_QUESTIONS];
-          mapped.forEach(m => {
-            if (!combined.some(c => c.body.toLowerCase() === m.body.toLowerCase())) {
-              combined.push(m);
-            }
-          });
-          setQuestions(combined);
+          // Merge unique questions strictly by id and body
+          const seenIds = new Set<string>();
+          const seenBodies = new Set<string>();
+          const combined: SystemQuestion[] = [];
+
+          const addQuestion = (item: SystemQuestion) => {
+            const id = (item.id || '').trim();
+            const normBody = (item.body || '').trim().toLowerCase();
+            if (!id || seenIds.has(id) || seenBodies.has(normBody)) return;
+            seenIds.add(id);
+            seenBodies.add(normBody);
+            combined.push(item);
+          };
+
+          // Real database questions take precedence
+          mapped.forEach(addQuestion);
+          // Supplement with fallback questions if needed
+          FALLBACK_QUESTIONS.forEach(addQuestion);
+
+          setQuestions(combined.length > 0 ? combined : FALLBACK_QUESTIONS);
         } else if (isMounted) {
           // Add any mock conversations of type 'question'
           const mocks = MOCK_CONVERSATIONS.filter(c => c.type === 'question').map(q => ({
@@ -192,13 +204,24 @@ export default function LandingPage() {
             scrut_count: q.scrut_count,
             country_count: q.country_count,
           }));
-          const combined = [...FALLBACK_QUESTIONS];
-          mocks.forEach(m => {
-            if (!combined.some(c => c.body.toLowerCase() === m.body.toLowerCase())) {
-              combined.push(m);
-            }
-          });
-          setQuestions(combined);
+
+          const seenIds = new Set<string>();
+          const seenBodies = new Set<string>();
+          const combined: SystemQuestion[] = [];
+
+          const addQuestion = (item: SystemQuestion) => {
+            const id = (item.id || '').trim();
+            const normBody = (item.body || '').trim().toLowerCase();
+            if (!id || seenIds.has(id) || seenBodies.has(normBody)) return;
+            seenIds.add(id);
+            seenBodies.add(normBody);
+            combined.push(item);
+          };
+
+          mocks.forEach(addQuestion);
+          FALLBACK_QUESTIONS.forEach(addQuestion);
+
+          setQuestions(combined.length > 0 ? combined : FALLBACK_QUESTIONS);
         }
       } catch {
         // use default fallback questions
@@ -474,10 +497,10 @@ export default function LandingPage() {
             {/* The Question Text */}
             <div className="min-h-[110px] sm:min-h-[120px] flex flex-col justify-center">
               <h2
-                key={currentQ.id}
+                key={currentQ?.id ? `q-text-${currentQ.id}` : `q-text-${currentQuestionIndex}`}
                 className="font-serif text-2xl sm:text-3xl md:text-4xl text-[#141413] leading-snug sm:leading-tight font-normal transition-all duration-300"
               >
-                “{currentQ.body}”
+                “{currentQ?.body}”
               </h2>
             </div>
 
@@ -485,7 +508,7 @@ export default function LandingPage() {
             <div className="flex items-center gap-1.5 mt-5 overflow-x-auto pb-1 scrollbar-none">
               {questions.map((q, idx) => (
                 <button
-                  key={q.id}
+                  key={`q-indicator-${q.id || idx}`}
                   type="button"
                   onClick={() => setCurrentQuestionIndex(idx)}
                   aria-label={`Go to question ${idx + 1}`}

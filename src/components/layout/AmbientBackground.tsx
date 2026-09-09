@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { usePreferences } from '@/stores/preferencesStore';
 import { getAmbientById, COLOR_BACKGROUNDS } from '@/constants/ambients';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { fetchD1AtmosphereClips } from '@/lib/d1Service';
 
 interface CustomAtmosphere {
   id: string;
@@ -19,9 +18,9 @@ export default function AmbientBackground() {
   const [customAtmospheres, setCustomAtmospheres] = useState<CustomAtmosphere[]>([]);
 
   useEffect(() => {
-    getDocs(query(collection(db, 'atmosphere_clips'), where('is_active', '==', true)))
-      .then((snap) => {
-        setCustomAtmospheres(snap.docs.map(d => ({ id: d.id, ...d.data() } as CustomAtmosphere)));
+    fetchD1AtmosphereClips()
+      .then((clips) => {
+        setCustomAtmospheres(clips as unknown as CustomAtmosphere[]);
       })
       .catch((err) => {
         console.warn('Atmosphere clips fetch error:', err);

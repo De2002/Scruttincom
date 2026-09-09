@@ -20,8 +20,7 @@ import {
 } from 'lucide-react';
 import { cn, timeAgo, formatCount } from '@/lib/utils';
 import type { User, ConversationStarter, Scrut, StatementPosition } from '@/types';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { fetchD1Conversations, fetchD1UserScruts } from '@/lib/d1Service';
 import { MOCK_CONVERSATIONS, MOCK_SCRUTS } from '@/constants/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { getMapUrl } from '@/lib/countryMap';
@@ -185,15 +184,12 @@ export default function UserContributionsSheet({
         });
       });
 
-      // 2. Query Firestore (if real user or active database)
+      // 2. Query Cloudflare D1
       try {
-        const [convSnap, scrutsSnap] = await Promise.all([
-          getDocs(query(collection(db, 'conversations'), where('user_id', '==', userId))),
-          getDocs(query(collection(db, 'scruts'), where('user_id', '==', userId))),
+        const [convList, scrutsList] = await Promise.all([
+          fetchD1Conversations({ userId }),
+          fetchD1UserScruts(userId),
         ]);
-
-        const convList = convSnap.docs.map(d => ({ id: d.id, ...d.data() } as Record<string, unknown>));
-        const scrutsList = scrutsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Record<string, unknown>));
 
         if (convList.length > 0) {
           convList.forEach((c: Record<string, unknown>) => {

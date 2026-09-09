@@ -12,6 +12,14 @@ import {
   PHOTO_PRESETS,
 } from '@/constants/taggedData';
 import type { User } from '@/types';
+import {
+  fetchD1TaggedData,
+  createD1TaggedPost,
+  createD1TaggedReply,
+  toggleD1UserTag,
+  toggleD1PostInteraction,
+  voteD1Poll,
+} from '@/lib/d1Service';
 
 const STORAGE_KEY_TAGGED = 'scruttin_tagged_user_ids';
 const STORAGE_KEY_LIKES = 'scruttin_tagged_liked_ids';
@@ -333,29 +341,55 @@ export function TaggedProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Initial fetch / hydration window for perceived performance
+  // Initial fetch / hydration from Cloudflare D1
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 450);
-    return () => clearTimeout(timer);
+    let mounted = true;
+    (async () => {
+      try {
+        const d1Data = await fetchD1TaggedData();
+        if (mounted && d1Data && d1Data.posts && d1Data.posts.length > 0) {
+          setPosts(d1Data.posts);
+          if (d1Data.userTags && d1Data.userTags.length > 0) {
+            setTaggedIds(d1Data.userTags);
+          }
+        }
+      } catch (err) {
+        console.warn('[D1 Tagged] Initial load fallback:', err);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const refreshFeed = useCallback(async () => {
     setIsLoading(true);
-    await new Promise((res) => setTimeout(res, 550));
     try {
-      const stored = localStorage.getItem(STORAGE_KEY_LOCAL_POSTS);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setPosts(parsed);
+      const d1Data = await fetchD1TaggedData();
+      if (d1Data && d1Data.posts && d1Data.posts.length > 0) {
+        setPosts(d1Data.posts);
+        if (d1Data.userTags && d1Data.userTags.length > 0) {
+          setTaggedIds(d1Data.userTags);
         }
       }
     } catch {
-      /* storage unavailable */
+      /* fallback to local posts */
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY_LOCAL_POSTS);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setPosts(parsed);
+          }
+        }
+      } catch {
+        // ignore storage parse errors
+      }
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -562,6 +596,13 @@ export function TaggedProvider({ children }: { children: ReactNode }) {
     };
     setPosts((prev) => [newPost, ...prev]);
     toast.success('Glimpse shared to Tagged!');
+
+    // Persist to Cloudflare D1
+    createD1TaggedPost({
+      userId: payload.user.id,
+      ...payload,
+    }).catch((err) => console.warn('[D1 Tagged] Post creation fallback:', err));
+
     return newPost;
   }, [canPostInTagged]);
 
@@ -588,6 +629,11 @@ export function TaggedProvider({ children }: { children: ReactNode }) {
         return p;
       })
     );
+
+    // Persist reply to Cloudflare D1
+    createD1TaggedReply(postId, user.id, text, sticker).catch((err) => {
+      console.warn('[D1 Tagged] Reply creation fallback:', err);
+    });
     toast.success('Reply posted!');
   }, []);
 

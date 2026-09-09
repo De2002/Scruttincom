@@ -6,14 +6,32 @@ import {
   Upload, Loader2, CheckCircle, XCircle,
   ArrowLeft, BarChart3, Megaphone, Eye, MousePointer, Clock
 } from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { 
-  collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, 
-  query, where, orderBy, limit, getCountFromServer 
-} from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import {
+  fetchD1AdminStats,
+  fetchD1AdminReports,
+  actionD1AdminReport,
+  fetchD1AdminUsers,
+  toggleD1AdminRole,
+  fetchD1AdminCampaigns,
+  createD1AdminCampaign,
+  updateD1AdminCampaignStatus,
+  fetchD1MusicTracks,
+  createD1MusicTrack,
+  deleteD1MusicTrack,
+  fetchD1AtmosphereClips,
+  createD1Atmosphere,
+  deleteD1Atmosphere,
+  fetchD1Topics,
+  createD1Topic,
+  deleteD1Topic,
+  fetchD1TypingSounds,
+  createD1TypingSound,
+  deleteD1TypingSound,
+  uploadD1Media
+} from '@/lib/d1Service';
 
 type Tab = 'overview' | 'reports' | 'music' | 'atmosphere' | 'typing' | 'topics' | 'users' | 'ads';
 
@@ -163,24 +181,9 @@ function StatCard({ label, value, color }: { label: string; value: number | stri
 function OverviewTab() {
   const [stats, setStats] = useState({ users: 0, scruts: 0, conversations: 0, reports: 0 });
   useEffect(() => {
-    (async () => {
-      try {
-        const [u, s, c, r] = await Promise.all([
-          getCountFromServer(collection(db, 'user_profiles')),
-          getCountFromServer(collection(db, 'scruts')),
-          getCountFromServer(collection(db, 'conversations')),
-          getCountFromServer(query(collection(db, 'reports'), where('reviewed', '==', false))),
-        ]);
-        setStats({
-          users: u.data().count,
-          scruts: s.data().count,
-          conversations: c.data().count,
-          reports: r.data().count,
-        });
-      } catch (err) {
-        console.warn('Overview stats fetch warning:', err);
-      }
-    })();
+    fetchD1AdminStats()
+      .then((data) => setStats(data))
+      .catch((err) => console.warn('Overview stats fetch warning:', err));
   }, []);
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -214,29 +217,8 @@ function AdsTab() {
 
   const load = async () => {
     try {
-      const snap = await getDocs(query(collection(db, 'ad_campaigns'), orderBy('created_at', 'desc')));
-      const campaignsData = snap.docs.map(d => ({ id: d.id, ...d.data() } as AdCampaign));
-      setCampaigns(campaignsData);
-
-      // Load stats for each campaign
-      const eventsSnap = await getDocs(collection(db, 'ad_events'));
-      const statsMap: Record<string, AdStats> = {};
-      eventsSnap.docs.forEach((docSnap) => {
-        const e = docSnap.data() as { campaign_id: string; event_type: string; value_num: number | null };
-        if (!e.campaign_id) return;
-        if (!statsMap[e.campaign_id]) {
-          statsMap[e.campaign_id] = { impressions: 0, clicks: 0, resonates: 0, responses: 0, avg_view_sec: 0 };
-        }
-        const s = statsMap[e.campaign_id];
-        if (e.event_type?.includes('impression')) s.impressions += 1;
-        if (e.event_type?.includes('click')) s.clicks += 1;
-        if (e.event_type?.includes('resonate')) s.resonates += 1;
-        if (e.event_type?.includes('response_started')) s.responses += 1;
-        if (e.event_type?.includes('duration') && e.value_num) {
-          s.avg_view_sec = (s.avg_view_sec + e.value_num) / 2;
-        }
-      });
-      setAdStats(statsMap);
+      const data = await fetchD1AdminCampaigns();
+      setCampaigns(data);
     } catch (err) {
       console.warn('Failed to load campaigns:', err);
     }
@@ -246,7 +228,7 @@ function AdsTab() {
 
   const updateStatus = async (id: string, status: string) => {
     try {
-      await updateDoc(doc(db, 'ad_campaigns', id), { status });
+      await updateD1AdminCampaignStatus(id, status);
       toast.success(`Campaign ${status}`);
       load();
     } catch (err) {
@@ -260,20 +242,15 @@ function AdsTab() {
 
     let logoUrl = '';
     if (logoFile) {
-      const reader = new FileReader();
-      logoUrl = await new Promise<string>((resolve) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => resolve('');
-        reader.readAsDataURL(logoFile);
-      });
+      const uploaded = await uploadD1Media(logoFile);
+      logoUrl = uploaded.url;
     }
 
     try {
-      await addDoc(collection(db, 'ad_campaigns'), {
+      await createD1AdminCampaign({
         advertiser_name: advertiserName.trim(),
         advertiser_logo_url: logoUrl || null,
         format,
-        status: 'draft',
         headline: headline.trim() || null,
         body: body.trim() || null,
         destination_url: destinationUrl.trim() || null,
@@ -281,7 +258,6 @@ function AdsTab() {
         start_at: startAt || null,
         end_at: endAt || null,
         min_scruts_between_ads: Number(minScruts) || 5,
-        created_at: new Date().toISOString(),
       });
       toast.success('Campaign created');
       setCreating(false);
@@ -454,8 +430,8 @@ function ReportsTab() {
   const load = async () => {
     setLoading(true);
     try {
-      const snap = await getDocs(query(collection(db, 'reports'), orderBy('created_at', 'desc'), limit(50)));
-      setReports(snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as Report)));
+      const data = await fetchD1AdminReports();
+      setReports(data as Report[]);
     } catch {
       setReports([]);
     }
@@ -466,10 +442,7 @@ function ReportsTab() {
 
   const action = async (report: Report, hide: boolean) => {
     try {
-      if (hide && report.scrut_id) {
-        await updateDoc(doc(db, 'scruts', report.scrut_id), { is_reported: true }).catch(() => {});
-      }
-      await updateDoc(doc(db, 'reports', report.id), { reviewed: true, actioned: hide });
+      await actionD1AdminReport(report.id, hide, report.scrut_id);
       toast.success(hide ? 'Rut hidden sitewide' : 'Report dismissed');
       load();
     } catch {
@@ -529,8 +502,8 @@ function MusicTab() {
 
   const load = async () => {
     try {
-      const snap = await getDocs(query(collection(db, 'music_tracks'), orderBy('created_at', 'desc')));
-      setTracks(snap.docs.map(d => ({ id: d.id, ...d.data() } as MusicTrack)));
+      const data = await fetchD1MusicTracks();
+      setTracks(data as MusicTrack[]);
     } catch {
       setTracks([]);
     }
@@ -542,20 +515,8 @@ function MusicTab() {
     if (!file || !title.trim() || !user) return;
     setUploading(true);
     try {
-      const reader = new FileReader();
-      const publicUrl = await new Promise<string>((resolve) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => resolve('');
-        reader.readAsDataURL(file);
-      });
-      await addDoc(collection(db, 'music_tracks'), {
-        title: title.trim(),
-        artist: artist.trim() || null,
-        url: publicUrl,
-        uploaded_by: user.id,
-        is_active: true,
-        created_at: new Date().toISOString(),
-      });
+      const uploaded = await uploadD1Media(file);
+      await createD1MusicTrack(title.trim(), artist.trim() || '', uploaded.url);
       toast.success('Track uploaded');
       setTitle(''); setArtist(''); setFile(null);
       load();
@@ -568,7 +529,7 @@ function MusicTab() {
 
   const remove = async (track: MusicTrack) => {
     try {
-      await updateDoc(doc(db, 'music_tracks', track.id), { is_active: false });
+      await deleteD1MusicTrack(track.id);
       toast.success('Track removed');
       load();
     } catch {
@@ -624,8 +585,8 @@ function AtmosphereTab() {
 
   const load = async () => {
     try {
-      const snap = await getDocs(query(collection(db, 'atmosphere_clips'), orderBy('created_at', 'desc')));
-      setClips(snap.docs.map(d => ({ id: d.id, ...d.data() } as AtmosphereClip)));
+      const data = await fetchD1AtmosphereClips();
+      setClips(data as AtmosphereClip[]);
     } catch {
       setClips([]);
     }
@@ -637,22 +598,14 @@ function AtmosphereTab() {
     if (!file || !label.trim() || !user) return;
     setUploading(true);
     try {
-      const reader = new FileReader();
-      const publicUrl = await new Promise<string>((resolve) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => resolve('');
-        reader.readAsDataURL(file);
-      });
-      await addDoc(collection(db, 'atmosphere_clips'), {
+      const uploaded = await uploadD1Media(file);
+      await createD1Atmosphere({
         label: label.trim(),
         emoji,
-        video_url: publicUrl,
+        video_url: uploaded.url,
         overlay_color: overlayColor,
         overlay_opacity: 0.65,
         accent_color: accentColor,
-        uploaded_by: user.id,
-        is_active: true,
-        created_at: new Date().toISOString(),
       });
       toast.success('Atmosphere added');
       setLabel(''); setFile(null);
@@ -666,7 +619,7 @@ function AtmosphereTab() {
 
   const remove = async (clip: AtmosphereClip) => {
     try {
-      await updateDoc(doc(db, 'atmosphere_clips', clip.id), { is_active: false });
+      await deleteD1Atmosphere(clip.id);
       toast.success('Atmosphere removed');
       load();
     } catch {
@@ -740,8 +693,8 @@ function TopicsTab() {
 
   const load = async () => {
     try {
-      const snap = await getDocs(query(collection(db, 'topics'), orderBy('sort_order', 'asc')));
-      setTopics(snap.docs.map(d => ({ id: d.id, ...d.data() } as Topic)));
+      const data = await fetchD1Topics();
+      setTopics(data as Topic[]);
     } catch {
       setTopics([]);
     }
@@ -753,12 +706,7 @@ function TopicsTab() {
     if (!newLabel.trim()) return;
     setAdding(true);
     try {
-      await addDoc(collection(db, 'topics'), {
-        label: newLabel.trim(),
-        color,
-        sort_order: topics.length + 1,
-        created_at: new Date().toISOString(),
-      });
+      await createD1Topic(newLabel.trim(), color, topics.length + 1);
       toast.success('Topic added');
       setNewLabel('');
       load();
@@ -792,7 +740,7 @@ function TopicsTab() {
           <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/4 border border-white/7">
             <span className={cn('font-medium text-sm', t.color)}>{t.label}</span>
             <div className="flex-1" />
-            <button onClick={async () => { await deleteDoc(doc(db, 'topics', t.id)); load(); }}
+            <button onClick={async () => { await deleteD1Topic(t.id); load(); }}
               className="p-1.5 text-white/20 hover:text-rose-400 transition-colors"><Trash2 size={14} /></button>
           </div>
         ))}
@@ -811,17 +759,14 @@ function TypingSoundsTab() {
 
   const load = async () => {
     try {
-      const snap = await getDocs(query(collection(db, 'typing_sounds'), orderBy('created_at', 'desc')));
-      setSounds(snap.docs.map(d => {
-        const data = d.data();
-        return {
-          id: d.id,
-          title: (data.title as string) || '',
-          url: (data.url as string) || '',
-          is_default: Boolean(data.is_default),
-          created_at: (data.created_at as string) || '',
-        };
-      }));
+      const data = await fetchD1TypingSounds();
+      setSounds(data.map((d: TypingSound) => ({
+        id: d.id,
+        title: d.title || '',
+        url: d.url || '',
+        is_default: Boolean(d.is_default),
+        created_at: d.created_at || '',
+      })));
     } catch {
       setSounds([]);
     }
@@ -832,20 +777,8 @@ function TypingSoundsTab() {
     if (!file || !title.trim() || !user) return;
     setUploading(true);
     try {
-      const reader = new FileReader();
-      const publicUrl = await new Promise<string>((resolve) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => resolve('');
-        reader.readAsDataURL(file);
-      });
-      await addDoc(collection(db, 'typing_sounds'), {
-        title: title.trim(),
-        url: publicUrl,
-        is_default: isDefault,
-        uploaded_by: user.id,
-        is_active: true,
-        created_at: new Date().toISOString(),
-      });
+      const uploaded = await uploadD1Media(file);
+      await createD1TypingSound(title.trim(), uploaded.url, isDefault);
       toast.success('Sound uploaded');
       setTitle(''); setFile(null); setIsDefault(false);
       load();
@@ -858,7 +791,7 @@ function TypingSoundsTab() {
 
   const remove = async (id: string) => {
     try {
-      await updateDoc(doc(db, 'typing_sounds', id), { is_active: false });
+      await deleteD1TypingSound(id);
       toast.success('Sound removed');
       load();
     } catch {
@@ -909,23 +842,14 @@ function UsersTab() {
   const [users, setUsers] = useState<{ id: string; display_name: string | null; email: string; country: string | null; is_admin: boolean }[]>([]);
 
   useEffect(() => {
-    getDocs(collection(db, 'user_profiles')).then((snap) => {
-      setUsers(snap.docs.map(d => {
-        const data = d.data();
-        return {
-          id: d.id,
-          display_name: (data.display_name as string) || null,
-          email: (data.email as string) || '',
-          country: (data.country as string) || null,
-          is_admin: Boolean(data.is_admin),
-        };
-      }));
+    fetchD1AdminUsers().then((data) => {
+      setUsers(data);
     }).catch(() => setUsers([]));
   }, []);
 
   const toggleAdmin = async (id: string, current: boolean) => {
     try {
-      await updateDoc(doc(db, 'user_profiles', id), { is_admin: !current });
+      await toggleD1AdminRole(id, !current);
       setUsers(u => u.map(x => x.id === id ? { ...x, is_admin: !current } : x));
       toast.success(current ? 'Admin removed' : 'Admin granted');
     } catch {

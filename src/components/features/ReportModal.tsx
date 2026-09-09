@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { db } from '@/lib/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { submitD1Report } from '@/lib/d1Service';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -42,14 +41,7 @@ export default function ReportModal({
     setSubmitting(true);
     const reporterId = user?.id || `anon-${Date.now()}`;
     try {
-      await addDoc(collection(db, 'reports'), {
-        scrut_id: scrutId,
-        reporter_id: reporterId,
-        reason,
-        reviewed: false,
-        actioned: false,
-        created_at: new Date().toISOString(),
-      });
+      await submitD1Report(scrutId, reporterId, reason);
     } catch {
       // Fallback
     } finally {

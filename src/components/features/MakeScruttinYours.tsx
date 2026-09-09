@@ -8,12 +8,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Upload, Music, Film, Type, Sliders, Loader2, Check, Volume2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, setDoc, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePreferences } from '@/stores/preferencesStore';
 import { AMBIENT_CONFIGS } from '@/constants/ambients';
-import { uploadMediaToCloudflareR2 } from '@/lib/cloudflareService';
+import {
+  uploadMediaToCloudflareR2,
+  fetchD1MusicTracks,
+  fetchD1AtmosphereClips,
+  fetchD1TypingSounds,
+  fetchD1UserPreferences,
+  saveD1UserPreferences,
+} from '@/lib/d1Service';
 import { setTypingSoundUrl, setTypingSoundEnabled } from '@/components/features/TextReveal';
 import { toast } from 'sonner';
 
@@ -80,11 +85,7 @@ export default function MakeScruttinYours() {
   const saveToDb = useCallback(async (patch: Record<string, unknown>) => {
     if (!user) return;
     try {
-      await setDoc(doc(db, 'user_preferences', user.id), {
-        user_id: user.id,
-        ...patch,
-        updated_at: new Date().toISOString(),
-      }, { merge: true });
+      await saveD1UserPreferences(user.id, patch);
       setSaved(true);
       setTimeout(() => setSaved(false), 1200);
     } catch (err) {
@@ -98,47 +99,44 @@ export default function MakeScruttinYours() {
 
   // Load DB data and sync preferences from DB
   useEffect(() => {
-    getDocs(query(collection(db, 'music_tracks'), where('is_active', '==', true)))
-      .then((snap) => {
-        setMusicTracks(snap.docs.map(d => ({ id: d.id, ...d.data() } as MusicTrack)));
+    fetchD1MusicTracks()
+      .then((tracks) => {
+        setMusicTracks(tracks as MusicTrack[]);
       }).catch(() => {});
 
-    getDocs(query(collection(db, 'atmosphere_clips'), where('is_active', '==', true)))
-      .then((snap) => {
-        setCustomAtmospheres(snap.docs.map(d => ({ id: d.id, ...d.data() } as CustomAtmosphere)));
+    fetchD1AtmosphereClips()
+      .then((clips) => {
+        setCustomAtmospheres(clips.map(c => ({ id: c.id, label: c.label, emoji: c.emoji || '✨' })));
       }).catch(() => {});
 
-    getDocs(query(collection(db, 'typing_sounds'), where('is_active', '==', true)))
-      .then((snap) => {
-        const sounds = snap.docs.map(d => ({ id: d.id, ...d.data() } as TypingSound));
-        setTypingSounds(sounds);
-        const defaultSound = sounds.find(s => s.is_default) ?? sounds[0];
-        if (defaultSound) setTypingSoundUrl(defaultSound.url);
+    fetchD1TypingSounds()
+      .then((sounds) => {
+        setTypingSounds(sounds.map(s => ({ ...s, is_default: false })));
+        if (sounds.length > 0) setTypingSoundUrl(sounds[0].url);
       }).catch(() => {});
 
     if (user) {
-      getDoc(doc(db, 'user_preferences', user.id))
-        .then((snap) => {
-          if (!snap.exists()) return;
-          const data = snap.data();
-          if (data.ambient) { setAmbient(data.ambient); }
-          if (data.reduced_motion !== undefined) setReducedMotion(data.reduced_motion);
-          if (data.music_enabled !== undefined) setMusicEnabled(data.music_enabled);
-          if (data.music_volume !== undefined) setMusicVolume(data.music_volume);
-          if (data.selected_track_id) setSelectedTrack(data.selected_track_id);
+      fetchD1UserPreferences(user.id)
+        .then((data) => {
+          if (!data) return;
+          if (data.ambient) { setAmbient(data.ambient as string); }
+          if (data.reduced_motion !== undefined) setReducedMotion(Boolean(data.reduced_motion));
+          if (data.music_enabled !== undefined) setMusicEnabled(Boolean(data.music_enabled));
+          if (data.music_volume !== undefined) setMusicVolume(Number(data.music_volume));
+          if (data.selected_track_id) setSelectedTrack(data.selected_track_id as string);
           if (data.font_family) {
-            setFontFamily(data.font_family);
-            applyFont(data.font_family);
+            setFontFamily(data.font_family as string);
+            applyFont(data.font_family as string);
           }
           if (data.text_size) {
-            setTextSize(data.text_size);
-            applyTextScale(data.text_size);
+            setTextSize(data.text_size as string);
+            applyTextScale(data.text_size as string);
           }
-          if (data.typing_speed) setTypingSpeed(data.typing_speed);
-          if (data.voice_volume !== undefined) setVoiceVolume(data.voice_volume);
+          if (data.typing_speed) setTypingSpeed(data.typing_speed as string);
+          if (data.voice_volume !== undefined) setVoiceVolume(Number(data.voice_volume));
           if (data.typing_sound_enabled !== undefined) {
-            setPrefTypingSound(data.typing_sound_enabled);
-            setTypingSoundEnabled(data.typing_sound_enabled);
+            setPrefTypingSound(Boolean(data.typing_sound_enabled));
+            setTypingSoundEnabled(Boolean(data.typing_sound_enabled));
           }
           if (data.personal_bg_url) setPersonalBgName('Custom background active');
           if (data.personal_music_url) setPersonalMusicName('Custom music active');

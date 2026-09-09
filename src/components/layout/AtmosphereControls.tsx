@@ -11,8 +11,7 @@ import { Settings2, X, Music2, Check, Sparkles, Palette } from 'lucide-react';
 import { usePreferences } from '@/stores/preferencesStore';
 import { AMBIENT_CONFIGS, COLOR_BACKGROUNDS } from '@/constants/ambients';
 import { cn } from '@/lib/utils';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { fetchD1AtmosphereClips } from '@/lib/d1Service';
 
 interface CustomAtmosphere {
   id: string;
@@ -27,12 +26,12 @@ export default function AtmosphereControls() {
   const [customAtmospheres, setCustomAtmospheres] = useState<CustomAtmosphere[]>([]);
 
   useEffect(() => {
-    getDocs(query(collection(db, 'atmosphere_clips'), where('is_active', '==', true)))
-      .then((snap) => {
-        setCustomAtmospheres(snap.docs.map(d => ({
+    fetchD1AtmosphereClips()
+      .then((clips) => {
+        setCustomAtmospheres(clips.map(d => ({
           id: d.id,
-          label: (d.data().label as string) || '',
-          emoji: (d.data().emoji as string) || '✨',
+          label: d.label || '',
+          emoji: d.emoji || '✨',
         })));
       })
       .catch((err) => {

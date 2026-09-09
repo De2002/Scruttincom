@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { auth, db, googleProvider, signInWithPopup, firebaseSignOut, handleFirestoreError, OperationType } from '@/lib/firebase';
-import { syncUserProfileToCloudflare } from '@/lib/cloudflareService';
+import { auth, googleProvider, signInWithPopup, firebaseSignOut } from '@/lib/firebase';
+import { syncD1UserProfile, fetchD1UserProfile } from '@/lib/d1Service';
 
 export interface AuthUser {
   id: string;
@@ -64,38 +63,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (firebaseUser: FirebaseUser): Promise<AuthUser> => {
-    const userDocRef = doc(db, 'users', firebaseUser.uid);
     try {
-      const snap = await getDoc(userDocRef);
-      if (snap.exists()) {
-        const mapped = mapFirebaseUser(firebaseUser, snap.data());
-        syncUserProfileToCloudflare(mapped);
-        return mapped;
-      } else {
-        // Create initial Firestore profile document
-        const newProfile: Record<string, unknown> = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          display_name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-          avatar_url: firebaseUser.photoURL || '',
-          is_admin: false,
-          onboarded: false,
-          created_at: new Date().toISOString(),
-        };
-        try {
-          await setDoc(userDocRef, newProfile);
-        } catch (err) {
-          handleFirestoreError(err, OperationType.CREATE, `users/${firebaseUser.uid}`);
-        }
-        const mapped = mapFirebaseUser(firebaseUser, newProfile);
-        syncUserProfileToCloudflare(mapped);
+      // 1. Fetch user profile from Cloudflare D1
+      const d1Profile = await fetchD1UserProfile(firebaseUser.uid);
+      if (d1Profile) {
+        const mapped = mapFirebaseUser(firebaseUser, d1Profile);
         return mapped;
       }
+
+      // 2. Initial user creation in Cloudflare D1
+      const initialUser: AuthUser = {
+        id: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        display_name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+        avatar_url: firebaseUser.photoURL || undefined,
+        is_admin: firebaseUser.email === 'mderrickm00@gmail.com',
+        onboarded: false,
+      };
+
+      await syncD1UserProfile(initialUser);
+      return initialUser;
     } catch (err) {
-      console.warn('Error fetching Firestore user profile:', err);
-      const mapped = mapFirebaseUser(firebaseUser);
-      syncUserProfileToCloudflare(mapped);
-      return mapped;
+      console.warn('[D1 Auth] Error fetching D1 user profile:', err);
+      return mapFirebaseUser(firebaseUser);
     }
   }, []);
 
@@ -115,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(authUser);
       }
     } catch (error) {
-      console.error('Firebase Google sign-in failed:', error);
+      console.error('Google sign-in error:', error);
       throw error;
     }
   }, [fetchProfile]);
@@ -126,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await firebaseSignOut(auth);
     } catch (err) {
-      console.error('Firebase sign-out error:', err);
+      console.error('Sign-out error:', err);
     }
     setUser(null);
   }, []);
@@ -145,13 +135,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = useCallback(async (updates: Partial<AuthUser>) => {
     if (!auth.currentUser) return;
-    const userDocRef = doc(db, 'users', auth.currentUser.uid);
+    const uid = auth.currentUser.uid;
     try {
-      await updateDoc(userDocRef, updates as Record<string, unknown>);
-      syncUserProfileToCloudflare({ id: auth.currentUser.uid, ...updates });
+      await syncD1UserProfile({ id: uid, ...updates });
       setUser((prev) => (prev ? { ...prev, ...updates } : prev));
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `users/${auth.currentUser.uid}`);
+      console.error('[D1 Auth] Failed to update user profile in D1:', err);
     }
   }, []);
 

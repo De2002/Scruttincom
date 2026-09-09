@@ -163,6 +163,76 @@ CREATE TABLE IF NOT EXISTS typing_sounds (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- 13. USER TAGS (Follow / Tagging relationships between users)
+CREATE TABLE IF NOT EXISTS user_tags (
+  id TEXT PRIMARY KEY,
+  tagger_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tagged_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(tagger_id, tagged_user_id)
+);
+
+-- 14. TAGGED POSTS
+CREATE TABLE IF NOT EXISTS tagged_posts (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text TEXT NOT NULL,
+  image_url TEXT,
+  gif_url TEXT,
+  sticker_json TEXT,
+  poll_json TEXT,
+  location_tag TEXT,
+  mood_tag TEXT,
+  likes_count INTEGER NOT NULL DEFAULT 0,
+  reposts_count INTEGER NOT NULL DEFAULT 0,
+  replies_count INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 15. TAGGED REPLIES
+CREATE TABLE IF NOT EXISTS tagged_replies (
+  id TEXT PRIMARY KEY,
+  post_id TEXT NOT NULL REFERENCES tagged_posts(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text TEXT NOT NULL,
+  sticker_json TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 16. TAGGED INTERACTIONS
+CREATE TABLE IF NOT EXISTS tagged_likes (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  post_id TEXT NOT NULL REFERENCES tagged_posts(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS tagged_reposts (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  post_id TEXT NOT NULL REFERENCES tagged_posts(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS tagged_bookmarks (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  post_id TEXT NOT NULL REFERENCES tagged_posts(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS tagged_poll_votes (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  post_id TEXT NOT NULL REFERENCES tagged_posts(id) ON DELETE CASCADE,
+  option_id TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_id, post_id)
+);
+
 -- INDEXES
 CREATE INDEX IF NOT EXISTS idx_conversations_created ON conversations(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_conversations_type ON conversations(type);
@@ -173,6 +243,13 @@ CREATE INDEX IF NOT EXISTS idx_scruts_created ON scruts(created_at ASC);
 CREATE INDEX IF NOT EXISTS idx_resonates_scrut ON resonates(scrut_id);
 CREATE INDEX IF NOT EXISTS idx_resonates_user ON resonates(user_id);
 CREATE INDEX IF NOT EXISTS idx_ad_campaigns_status ON ad_campaigns(status);
+CREATE INDEX IF NOT EXISTS idx_user_tags_tagger ON user_tags(tagger_id);
+CREATE INDEX IF NOT EXISTS idx_user_tags_tagged ON user_tags(tagged_user_id);
+CREATE INDEX IF NOT EXISTS idx_tagged_posts_created ON tagged_posts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tagged_posts_user ON tagged_posts(user_id);
+CREATE INDEX IF NOT EXISTS idx_tagged_replies_post ON tagged_replies(post_id);
+CREATE INDEX IF NOT EXISTS idx_tagged_likes_post ON tagged_likes(post_id);
+CREATE INDEX IF NOT EXISTS idx_tagged_likes_user ON tagged_likes(user_id);
 
 -- SEED DATA: Topics
 INSERT OR IGNORE INTO topics (id, label, sort_order) VALUES
