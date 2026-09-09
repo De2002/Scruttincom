@@ -189,7 +189,21 @@ CREATE TABLE IF NOT EXISTS tagged_posts (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- 15. TAGGED REPLIES
+-- 15. MEDIA UPLOADS
+CREATE TABLE IF NOT EXISTS media_uploads (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  key TEXT NOT NULL UNIQUE,
+  url TEXT NOT NULL,
+  mime_type TEXT,
+  size INTEGER NOT NULL,
+  original_name TEXT,
+  uploaded_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_uploads_user ON media_uploads(user_id);
+
+-- 16. TAGGED REPLIES
 CREATE TABLE IF NOT EXISTS tagged_replies (
   id TEXT PRIMARY KEY,
   post_id TEXT NOT NULL REFERENCES tagged_posts(id) ON DELETE CASCADE,

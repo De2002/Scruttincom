@@ -146,26 +146,7 @@ export function TaggedProvider({ children }: { children: ReactNode }) {
     }
   });
 
-  const [posts, setPosts] = useState<TaggedPostItem[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY_LOCAL_POSTS);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Ensure seed poll posts are available if user hasn't seen them
-          const hasPollPost = parsed.some((p: TaggedPostItem) => p.poll);
-          if (!hasPollPost) {
-            const seedPolls = INITIAL_TAGGED_POSTS.filter((p) => p.poll);
-            return [...seedPolls, ...parsed];
-          }
-          return parsed;
-        }
-      }
-      return INITIAL_TAGGED_POSTS;
-    } catch {
-      return INITIAL_TAGGED_POSTS;
-    }
-  });
+  const [posts, setPosts] = useState<TaggedPostItem[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -375,18 +356,7 @@ export function TaggedProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch {
-      /* fallback to local posts */
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY_LOCAL_POSTS);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setPosts(parsed);
-          }
-        }
-      } catch {
-        // ignore storage parse errors
-      }
+      setPosts([]);
     } finally {
       setIsLoading(false);
     }

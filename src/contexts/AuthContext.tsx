@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
-import { auth, googleProvider, signInWithPopup, firebaseSignOut } from '@/lib/firebase';
+import {
+  auth,
+  googleProvider,
+  signInWithPopup,
+  firebaseSignOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from '@/lib/firebase';
 import { syncD1UserProfile, fetchD1UserProfile } from '@/lib/d1Service';
 
 export interface AuthUser {
@@ -28,6 +35,8 @@ interface AuthContextValue {
   refreshUser: () => Promise<void>;
   updateTipLink?: (link: string) => void;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
   updateProfile: (updates: Partial<AuthUser>) => Promise<void>;
 }
 
@@ -110,6 +119,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchProfile]);
 
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
+    const result = await signInWithEmailAndPassword(auth, email.trim(), password);
+    setUser(await fetchProfile(result.user));
+  }, [fetchProfile]);
+
+  const signUpWithEmail = useCallback(async (email: string, password: string) => {
+    const result = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    setUser(await fetchProfile(result.user));
+  }, [fetchProfile]);
+
   const login = useCallback((u: AuthUser) => setUser(u), []);
 
   const logout = useCallback(async () => {
@@ -186,6 +205,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshUser,
         updateTipLink,
         signInWithGoogle,
+        signInWithEmail,
+        signUpWithEmail,
         updateProfile,
       }}
     >

@@ -1,9 +1,13 @@
 import { Env, jsonResponse, corsResponse } from '../types';
+import { requireFirebaseUser, authError } from '../lib/firebaseVerify';
 
 export const onRequestOptions = async () => corsResponse();
 
 export const onRequestPost = async (context: { request: Request; env: Env }) => {
   const { request, env } = context;
+
+  let authUser: { uid: string; email: string };
+  try { authUser = await requireFirebaseUser(request, env); } catch (error) { return authError(error); }
 
   if (!env.MEDIA_BUCKET) {
     return jsonResponse(
@@ -73,9 +77,15 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     const publicBase = env.MEDIA_PUBLIC_URL ? env.MEDIA_PUBLIC_URL.replace(/\/$/, '') : '';
     const publicUrl = publicBase ? `${publicBase}/${key}` : `/api/media/${key}`;
+    const mediaId = `media_${timestamp}_${randomHex}`;
+    if (env.DB) {
+      await env.DB.prepare(`INSERT INTO media_uploads (id, user_id, key, url, mime_type, size, original_name, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(mediaId, authUser.uid, key, publicUrl, mimeType, fileBuffer.byteLength, originalName, new Date().toISOString()).run();
+    }
 
     return jsonResponse({
       success: true,
+      mediaId,
       key,
       url: publicUrl,
       size: fileBuffer.byteLength,

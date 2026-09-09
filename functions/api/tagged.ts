@@ -1,4 +1,5 @@
 import { Env, jsonResponse, corsResponse } from '../types';
+import { requireFirebaseUser, authError } from '../lib/firebaseVerify';
 
 export const onRequestOptions = async () => corsResponse();
 
@@ -119,8 +120,11 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
   }
 
   try {
+    const authUser = await requireFirebaseUser(request, env);
     const body = await request.json() as Record<string, unknown>;
     const type = body.type as string; // 'post' | 'reply' | 'tag' | 'like' | 'repost' | 'bookmark' | 'vote'
+    body.userId = authUser.uid;
+    body.taggerId = authUser.uid;
 
     if (type === 'post') {
       const postId = (body.id as string) || 'tag_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
@@ -292,6 +296,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     return jsonResponse({ error: 'Unknown request type' }, { status: 400 });
   } catch (err: unknown) {
+    if (err instanceof Response) return authError(err);
     const msg = err instanceof Error ? err.message : String(err);
     return jsonResponse({ error: 'Failed to process tagged action', details: msg }, { status: 500 });
   }
