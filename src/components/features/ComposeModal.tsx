@@ -56,8 +56,9 @@ export default function ComposeModal({ onClose, defaultMode = 'question', contex
   useEffect(() => {
     fetchFirestoreTopics().then((dbTopics) => {
       if (dbTopics && dbTopics.length > 0) {
-        setTopics(dbTopics);
-        setTopic(dbTopics[0]);
+        const topicLabels = dbTopics.map((topic) => topic.label);
+        setTopics(topicLabels);
+        setTopic(topicLabels[0]);
       }
     });
   }, []);

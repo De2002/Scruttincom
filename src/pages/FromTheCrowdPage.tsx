@@ -67,8 +67,9 @@ export default function FromTheCrowdPage() {
   // Load topics from Firestore
   useEffect(() => {
     fetchFirestoreTopics().then((topics) => {
-      setDbTopics(topics);
-      if (topics.length > 0) setSelectedTopic(topics[0]);
+      const topicLabels = topics.map((topic) => topic.label);
+      setDbTopics(topicLabels);
+      if (topicLabels.length > 0) setSelectedTopic(topicLabels[0]);
     });
   }, []);
 
