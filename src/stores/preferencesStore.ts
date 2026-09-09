@@ -26,7 +26,7 @@ interface PreferencesStore extends UserPreferences {
 export const usePreferences = create<PreferencesStore>()(
   persist(
     (set) => ({
-      ambient: 'night',
+      ambient: 'ocean',
       reducedMotion: false,
       musicEnabled: false,
       musicVolume: 40,

@@ -251,12 +251,10 @@ export async function fetchD1UserStats(userId: string): Promise<{
     };
   }
 
-  const userScruts = ([] as Scrut[]).filter((s) => s.user_id === userId);
-  const userConvs = ([] as ConversationStarter[]).filter((c) => c.user_id === userId);
   return {
-    scruts_given: userScruts.length,
-    conversations_asked: userConvs.length,
-    taggers_count: 14,
+    scruts_given: 0,
+    conversations_asked: 0,
+    taggers_count: 0,
   };
 }
 
@@ -299,13 +297,13 @@ export async function fetchD1TaggedData(currentUserId?: string): Promise<D1Tagge
   }
 
   return {
-    posts: [] as TaggedPostItem[],
-    userTags: ['u5', 'u1', 'u4', 'u2'],
+    posts: [],
+    userTags: [],
     likedIds: [],
     repostedIds: [],
     bookmarkedIds: [],
     pollVotes: {},
-    taggersCount: 14,
+    taggersCount: 0,
   };
 }
 
