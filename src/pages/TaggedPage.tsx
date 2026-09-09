@@ -35,7 +35,6 @@ import TaggedPollBuilder, { PollDraft } from '@/components/features/TaggedPollBu
 import ScrutDetailSheet from '@/components/features/ScrutDetailSheet';
 import TaggedUsersSheet from '@/components/features/TaggedUsersSheet';
 import TaggedPostingEligibilityCard from '@/components/features/TaggedPostingEligibilityCard';
-import TaggedGracePeriodBanner from '@/components/features/TaggedGracePeriodBanner';
 import TaggedRulesModal from '@/components/features/TaggedRulesModal';
 import ShareModal from '@/components/features/ShareModal';
 import ReportModal from '@/components/features/ReportModal';
@@ -70,8 +69,7 @@ export default function TaggedPage() {
     taggersThreshold,
     taggerStatus,
     canPostInTagged,
-    gracePeriodDaysRemaining,
-    gracePeriodHoursRemaining,
+
   } = useTagged();
 
   const [activeTab, setActiveTab] = useState<FeedTab>('tagged_along');
@@ -527,9 +525,6 @@ export default function TaggedPage() {
           <TaggedPostingEligibilityCard onOpenRules={() => setShowRulesModal(true)} />
         ) : (
           <>
-            {taggerStatus === 'grace_period' && (
-              <TaggedGracePeriodBanner onOpenRules={() => setShowRulesModal(true)} />
-            )}
             <section className="mb-3.5 sm:mb-4 rounded-2xl bg-black/35 backdrop-blur-md border border-white/10 p-3 sm:p-3.5 shadow-md">
               <div className="flex items-start gap-2.5 sm:gap-3">
                 <div className="shrink-0 pt-0.5">
