@@ -3,6 +3,7 @@ export interface Env {
   MEDIA_BUCKET: R2Bucket;
   MEDIA_PUBLIC_URL?: string;
   ENVIRONMENT?: string;
+  FIREBASE_PROJECT_ID?: string;
 }
 
 export interface JsonResponseOptions {

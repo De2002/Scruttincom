@@ -1,4 +1,5 @@
 import { Env, jsonResponse, corsResponse } from '../types';
+import { requireFirebaseUser, authError } from '../lib/firebaseVerify';
 
 export const onRequestOptions = async () => corsResponse();
 
@@ -9,8 +10,12 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
     return jsonResponse({ error: 'Cloudflare D1 DB binding is not configured' }, { status: 500 });
   }
 
+  let authUser: { uid: string; email: string };
+  try { authUser = await requireFirebaseUser(request, env); } catch (error) { return authError(error); }
   const url = new URL(request.url);
-  const id = url.searchParams.get('id');
+  const requestedId = url.searchParams.get('id');
+  const id = requestedId || authUser.uid;
+  if (requestedId && requestedId !== authUser.uid) return jsonResponse({ error: 'Forbidden' }, { status: 403 });
 
   if (!id) {
     return jsonResponse({ error: 'User ID missing' }, { status: 400 });
@@ -52,8 +57,9 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
   }
 
   try {
+    const authUser = await requireFirebaseUser(request, env);
     const body = await request.json() as Record<string, unknown>;
-    const id = body.id as string;
+    const id = authUser.uid;
 
     if (!id) {
       return jsonResponse({ error: 'User ID missing' }, { status: 400 });
@@ -94,6 +100,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     return jsonResponse({ success: true, id });
   } catch (err: unknown) {
+    if (err instanceof Response) return authError(err);
     const msg = err instanceof Error ? err.message : String(err);
     return jsonResponse({ error: 'Failed to save user', details: msg }, { status: 500 });
   }

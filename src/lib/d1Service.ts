@@ -11,18 +11,19 @@
 
 import type { ConversationStarter, Scrut, User } from '@/types';
 import type { TaggedPostItem, TaggedReply, TaggedSticker, TaggedPoll } from '@/constants/taggedData';
-import { MOCK_CONVERSATIONS, MOCK_SCRUTS, MOCK_USERS } from '@/constants/mockData';
-import { INITIAL_TAGGED_POSTS } from '@/constants/taggedData';
+import { auth } from '@/lib/firebase';
 
 const API_BASE = '/api';
 
-/** Helper for safe API fetch */
+/** Every API request carries the current Firebase ID token. */
 async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T | null> {
   try {
+    const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
     const res = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options?.headers || {}),
       },
     });
@@ -50,8 +51,8 @@ export async function fetchD1Stream(): Promise<{
   }
   // Fallback if D1 is initializing
   return {
-    conversations: MOCK_CONVERSATIONS,
-    scruts: MOCK_SCRUTS,
+    conversations: [] as ConversationStarter[],
+    scruts: [] as Scrut[],
   };
 }
 
@@ -71,9 +72,9 @@ export async function fetchD1Conversations(params?: {
   }
   // Fallback filter
   if (p?.type) {
-    return MOCK_CONVERSATIONS.filter((c) => c.type === p.type);
+    return ([] as ConversationStarter[]).filter((c) => c.type === p.type);
   }
-  return MOCK_CONVERSATIONS;
+  return [] as ConversationStarter[];
 }
 
 export async function fetchD1Conversation(id: string): Promise<ConversationStarter | null> {
@@ -81,7 +82,7 @@ export async function fetchD1Conversation(id: string): Promise<ConversationStart
   if (data && data.id) {
     return data;
   }
-  return MOCK_CONVERSATIONS.find((c) => c.id === id) || null;
+  return ([] as ConversationStarter[]).find((c) => c.id === id) || null;
 }
 
 export async function createD1Conversation(input: {
@@ -133,7 +134,7 @@ export async function fetchD1ScrutsForConversation(
   if (data && Array.isArray(data)) {
     return data;
   }
-  return MOCK_SCRUTS.filter((s) => s.conversation_id === conversationId);
+  return ([] as Scrut[]).filter((s) => s.conversation_id === conversationId);
 }
 
 export async function fetchD1OpenScruts(currentUserId?: string): Promise<Scrut[]> {
@@ -144,7 +145,7 @@ export async function fetchD1OpenScruts(currentUserId?: string): Promise<Scrut[]
   if (data && Array.isArray(data)) {
     return data;
   }
-  return MOCK_SCRUTS.filter((s) => !s.conversation_id);
+  return ([] as Scrut[]).filter((s) => !s.conversation_id);
 }
 
 export async function fetchD1UserScruts(userId: string, currentUserId?: string): Promise<Scrut[]> {
@@ -155,7 +156,7 @@ export async function fetchD1UserScruts(userId: string, currentUserId?: string):
   if (data && Array.isArray(data)) {
     return data;
   }
-  return MOCK_SCRUTS.filter((s) => s.user_id === userId);
+  return ([] as Scrut[]).filter((s) => s.user_id === userId);
 }
 
 export async function createD1Scrut(input: {
@@ -250,8 +251,8 @@ export async function fetchD1UserStats(userId: string): Promise<{
     };
   }
 
-  const userScruts = MOCK_SCRUTS.filter((s) => s.user_id === userId);
-  const userConvs = MOCK_CONVERSATIONS.filter((c) => c.user_id === userId);
+  const userScruts = ([] as Scrut[]).filter((s) => s.user_id === userId);
+  const userConvs = ([] as ConversationStarter[]).filter((c) => c.user_id === userId);
   return {
     scruts_given: userScruts.length,
     conversations_asked: userConvs.length,
@@ -298,7 +299,7 @@ export async function fetchD1TaggedData(currentUserId?: string): Promise<D1Tagge
   }
 
   return {
-    posts: INITIAL_TAGGED_POSTS,
+    posts: [] as TaggedPostItem[],
     userTags: ['u5', 'u1', 'u4', 'u2'],
     likedIds: [],
     repostedIds: [],
@@ -532,8 +533,10 @@ export async function uploadD1Media(
     const actualName = filename || (fileOrBlob instanceof File ? fileOrBlob.name : `audio_${Date.now()}.webm`);
     formData.append('file', fileOrBlob, actualName);
 
+    const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
     const res = await fetch(`${API_BASE}/upload`, {
       method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
 
@@ -544,16 +547,9 @@ export async function uploadD1Media(
       }
     }
   } catch (err) {
-    console.warn('Cloudflare R2 / D1 media upload fallback:', err);
+    console.error('[Cloudflare R2] Upload failed:', err);
   }
-
-  // Graceful fallback: convert to data URL
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve({ url: reader.result as string });
-    reader.onerror = () => resolve({ url: '' });
-    reader.readAsDataURL(fileOrBlob);
-  });
+  throw new Error('Media upload failed. Please try again.');
 }
 
 export const uploadMediaToCloudflareR2 = uploadD1Media;

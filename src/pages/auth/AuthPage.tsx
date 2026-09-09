@@ -30,9 +30,13 @@ const COUNTRIES = [
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const { user, loading, signInWithGoogle, updateProfile } = useAuth();
+  const { user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, updateProfile } = useAuth();
 
   const [step, setStep] = useState<Step>('signin');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [dob, setDob] = useState('');
   const [country, setCountry] = useState('');
@@ -67,6 +71,23 @@ export default function AuthPage() {
           setError(msg);
         }
       }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEmailAuth = async () => {
+    if (!email.trim() || !password) return setError('Enter your email and password');
+    if (authMode === 'signup' && password !== confirmPassword) return setError('Passwords do not match');
+    if (password.length < 6) return setError('Password must be at least 6 characters');
+    setError('');
+    setSubmitting(true);
+    try {
+      if (authMode === 'signup') await signUpWithEmail(email, password);
+      else await signInWithEmail(email, password);
+    } catch (err: unknown) {
+      const code = err && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
+      setError(code === 'auth/invalid-credential' ? 'Email or password is incorrect' : code === 'auth/email-already-in-use' ? 'An account already exists for this email' : 'Authentication failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -175,6 +196,14 @@ export default function AuthPage() {
                 )}
               </button>
 
+              <div className="flex items-center gap-3 text-white/20 text-[10px] uppercase tracking-widest"><span className="h-px flex-1 bg-white/10" />or<span className="h-px flex-1 bg-white/10" /></div>
+              <div className="space-y-3">
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email address" autoComplete="email" className="w-full bg-white/6 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 text-sm focus:outline-none focus:border-white/30" />
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} className="w-full bg-white/6 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 text-sm focus:outline-none focus:border-white/30" />
+                {authMode === 'signup' && <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm password" autoComplete="new-password" className="w-full bg-white/6 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 text-sm focus:outline-none focus:border-white/30" />}
+                <button type="button" onClick={handleEmailAuth} disabled={submitting} className="w-full py-3.5 rounded-2xl font-medium text-sm bg-white/10 text-white hover:bg-white/15 transition-colors disabled:opacity-50">{authMode === 'signup' ? 'Create account with email' : 'Sign in with email'}</button>
+                <button type="button" onClick={() => { setAuthMode(authMode === 'signup' ? 'signin' : 'signup'); setError(''); }} className="w-full text-white/40 hover:text-white/70 text-xs transition-colors">{authMode === 'signup' ? 'Already have an account? Sign in' : 'New here? Create an account'}</button>
+              </div>
               {error && (
                 <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs text-center">
                   {error}
